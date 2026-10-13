@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Services - Week 7</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <header>
+        <div class="header-content">
+            <h1>Cloud Services - Week 7</h1>
+            <p>Infrastructure as Code with OpenTofu</p>
+        </div>
+    </header>
+
+    <nav class="tabs">
+        <button class="tab active" data-tab="app">App</button>
+        <button class="tab" data-tab="implementation">Implementation</button>
+        <button class="tab" data-tab="experiments">Experiments</button>
+        <button class="tab" data-tab="theory">Theory</button>
+    </nav>
+
+    <main>
+
+        <section id="app" class="tab-content active">
+            <h2>Welcome</h2>
+
+            <p>
+                This webpage was deployed automatically to CSC cPouta
+                using OpenTofu and cloud-init.
+            </p>
+
+            <h3>Student</h3>
+            <p>__STUDENT_NAME__</p>
+
+            <h3>Deployment Message</h3>
+            <p>__PAGE_MESSAGE__</p>
+
+            <h3>Infrastructure</h3>
+
+            <p>
+                The application runs on an Ubuntu virtual machine
+                using Apache as its web server.
+            </p>
+
+            <p>
+                All infrastructure resources are managed using
+                OpenTofu, while cloud-init handles the initial
+                server configuration.
+            </p>
+        </section>
+
+        <section id="implementation" class="tab-content">
+			<h2>Implementation</h2>
+
+			<h3>1. Overview</h3>
+
+			<p>
+				The purpose of this assignment was to create a web server on CSC cPouta
+				using Infrastructure as Code (IaC). Instead of manually creating and
+				configuring a virtual machine, the infrastructure was deployed using
+				OpenTofu, while cloud-init handled the installation and configuration
+				of Apache.
+			</p>
+
+			<p>
+				For Week 1, I used an existing VPS rather than creating a virtual machine
+				in cPouta. Because of this, I first had to enable cPouta for my CSC
+				project and configure the necessary credentials.
+			</p>
+
+			<h3>2. Infrastructure</h3>
+
+			<p>
+				The infrastructure consists of an Ubuntu 24.04 virtual machine, a
+				network port, a floating public IP address, an SSH key pair, and a
+				security group with firewall rules.
+				All resources are defined in OpenTofu configuration files.
+			</p>
+
+			<table class="doc-table">
+				<thead>
+					<tr>
+						<th>Resource</th>
+						<th>Purpose</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>Virtual machine</td>
+						<td>Runs Ubuntu and hosts the Apache web server.</td>
+					</tr>
+					<tr>
+						<td>SSH key pair</td>
+						<td>Allows secure SSH authentication using a public key.</td>
+					</tr>
+					<tr>
+						<td>Security group</td>
+						<td>Controls incoming network traffic to the VM.</td>
+					</tr>
+					<tr>
+						<td>SSH rule</td>
+						<td>Allows TCP port 22 only from my specified public IP address.</td>
+					</tr>
+					<tr>
+						<td>HTTP rule</td>
+						<td>Allows TCP port 80 from anywhere.</td>
+					</tr>
+					<tr>
+						<td>HTTPS rule</td>
+						<td>Allows TCP port 443 from anywhere. Added during Experiment 1B.</td>
+					</tr>
+					<tr>
+						<td>Network port</td>
+						<td>Connects the VM to the existing CSC project network.</td>
+					</tr>
+					<tr>
+						<td>Floating IP</td>
+						<td>Provides a public IP address for accessing the web server.</td>
+					</tr>
+				</tbody>
+			</table>
+
+			<p>
+				The project network is referenced using a data source rather than
+				created by OpenTofu. This means the existing network can be used
+				without OpenTofu taking responsibility for its lifecycle.
+			</p>
+
+			<h3>3. OpenTofu Configuration</h3>
+
+			<p>
+				The infrastructure is defined in main.tf, while versions.tf specifies
+				the OpenStack provider. The remaining configuration files define input
+				variables, outputs, and the initial VM configuration.
+			</p>
+
+			<p>
+				Input variables allow deployment settings to be changed without
+				modifying the infrastructure definitions. For example, the VM image,
+				flavor, network, and allowed SSH address can be configured through
+				terraform.tfvars.
+			</p>
+
+			<p>
+				The variables project_network, ssh_allowed_cidr, and student_name
+				have no default values. The network and student name are specific
+				to each deployment, while requiring an explicit SSH address helps
+				prevent accidentally exposing SSH access to the internet.
+			</p>
+
+			<p>
+				The SSH address also has a validation rule requiring a valid IPv4
+				address with a /32 prefix. This restricts access to a single address
+				instead of allowing an entire network.
+			</p>
+
+			<h3>4. Resource Dependencies</h3>
+
+			<p>
+				OpenTofu determines the order of resource creation using references
+				between resources. For example, the network port references the
+				security group and the existing project network. The VM references
+				the SSH key pair and network port, while the floating IP is associated
+				with the network port.
+			</p>
+
+			<p>
+				These references create dependencies automatically. OpenTofu can
+				create independent resources simultaneously, but resources with
+				dependencies must wait until the required resources are available.
+				During destruction, this order is generally reversed.
+			</p>
+
+			<h3>5. Automatic Web Server Configuration</h3>
+
+			<p>
+				Cloud-init handles the initial configuration of the virtual machine.
+				When the VM starts, cloud-init installs Apache, creates the website
+				files, and ensures that the Apache service is running and enabled
+				to start automatically.
+			</p>
+
+			<p>
+				The website uses separate index.html and style.css files. These are
+				included in the cloud-init configuration through OpenTofu, allowing
+				the webpage and its styling to be deployed automatically.
+			</p>
+
+			<p>
+				This means the web server can be recreated without manually connecting
+				through SSH or copying files onto the VM.
+			</p>
+
+			<h3>6. Initial Deployment</h3>
+
+			<p>
+				Before deploying, I predicted that OpenTofu would create seven
+				resources. Although main.tf also contains a data block for the
+				project network, it does not count as a created resource because
+				the network already exists.
+			</p>
+
+			<p>
+				After running tofu init, tofu fmt, and tofu validate, I executed
+				tofu plan to preview the deployment.
+			</p>
+
+			<p>
+				The plan showed seven resources to add, with no changes or deletions.
+				This matched my prediction.
+			</p>
+
+			<p class="image-label">Initial deployment plan:</p>
+			<img
+				class="doc-image"
+				src="https://a3s.fi/swift/v1/assignment-7-media/tofu_plan.png"
+				alt="Initial OpenTofu plan showing seven resources to add"
+				loading="lazy"
+			>
+
+			<p>
+				I then ran tofu apply and confirmed the deployment. OpenTofu
+				successfully created all seven resources and returned the public
+				IP address and website URL through the configured outputs.
+			</p>
+
+			<p class="image-label">Successful deployment:</p>
+			<img
+				class="doc-image"
+				src="https://a3s.fi/swift/v1/assignment-7-media/tofu_apply.png"
+				alt="Successful OpenTofu deployment"
+				loading="lazy"
+			>
+
+			<h3>7. Deployment Verification</h3>
+
+			<p>
+				After the deployment, I waited for cloud-init to finish configuring
+				Apache and opened the public IP address in a browser. The custom
+				webpage was displayed successfully.
+			</p>
+
+			<p>
+				I also checked the cPouta dashboard to verify that the VM was running
+				and that the security group contained the expected firewall rules.
+			</p>
+
+			<p class="image-label">Webpage after deployment:</p>
+			<img
+				class="doc-image"
+				src="https://a3s.fi/swift/v1/assignment-7-media/working_webpage.png"
+				alt="Webpage running on the cPouta virtual machine"
+				loading="lazy"
+			>
+
+			<p class="image-label">Virtual machine and security group:</p>
+			<img
+				class="doc-image"
+				src="https://a3s.fi/swift/v1/assignment-7-media/cpouta_instances.png"
+				alt="Resources created in the cPouta dashboard"
+				loading="lazy"
+			>
+			<img
+				class="doc-image"
+				src="https://a3s.fi/swift/v1/assignment-7-media/cpouta_week7_security_group.png"
+				alt="Resources created in the cPouta dashboard"
+				loading="lazy"
+			>
+
+			<h3>8. Reproducibility</h3>
+
+			<p>
+				The infrastructure can be destroyed using tofu destroy and recreated
+				using tofu apply. The configuration files contain everything needed
+				to deploy the VM, networking resources, and web server automatically.
+			</p>
+
+			<p>
+				Personal configuration values and credentials are excluded from Git,
+				while terraform.tfvars.example documents the required input values.
+				The repository also contains a README explaining how to deploy
+				and remove the infrastructure.
+			</p>
+
+		</section>
+
+        <section id="experiments" class="tab-content">
+			<h2>Experiments</h2>
+
+			<p>
+				The experiments were used to observe how OpenTofu handles infrastructure
+				changes, configuration drift, and the destruction and recreation of
+				resources. Predictions were made before running the commands and then
+				compared against the results.
+			</p>
+
+			<h3>Experiment 1A - Changing the Webpage</h3>
+
+			<h4>Prediction</h4>
+
+			<p>
+				I expected OpenTofu to replace the virtual machine instead of updating
+				it in place. The webpage message is passed to the VM through cloud-init
+				using the user_data attribute, and cloud-init normally performs its
+				initial configuration during the first boot.
+			</p>
+
+			<p>
+				I also expected the public IP address to remain unchanged because
+				the floating IP is attached to the network port rather than
+				directly to the virtual machine.
+			</p>
+
+			<h4>Implementation</h4>
+
+			<p>
+				I changed the page_message variable in terraform.tfvars and
+				ran tofu plan to inspect the proposed changes.
+			</p>
+
+			<h4>Result</h4>
+
+			<p>
+				The plan showed that the virtual machine needed to be replaced because
+				the user_data attribute had changed. The expected change was one
+				resource to add and one to destroy.
+			</p>
+
+			<p>
+				After applying the changes, the new virtual machine was created
+				and the updated webpage message was displayed.
+			</p>
+
+			<h4>Explanation</h4>
+
+			<p>
+				The OpenStack provider requires the VM to be replaced when user_data
+				changes. Simply modifying the existing attribute would not cause
+				cloud-init to repeat its initial setup on the running VM.
+			</p>
+
+			<p>
+				The floating IP remained associated with the existing network port,
+				so replacing the VM did not require allocating a new public address.
+			</p>
+
+			<p class="image-label">Plan showing the virtual machine replacement:</p>
+			<img
+				class="doc-image"
+				src="https://a3s.fi/swift/v1/assignment-7-media/tofu_apply_after_webpage_message_change.png"
+				alt="OpenTofu plan showing VM replacement"
+				loading="lazy"
+			>
+
+
+			<h3>Experiment 1B - Adding HTTPS Access</h3>
+
+			<h4>Prediction</h4>
+
+			<p>
+				I expected OpenTofu to add one new security group rule without
+				modifying or replacing any existing resources.
+				The virtual machine should remain unaffected because the change
+				only modifies which incoming connections are permitted.
+			</p>
+
+			<p>
+				I also expected HTTPS connections to fail because allowing traffic
+				through the firewall does not automatically configure Apache
+				to use HTTPS.
+			</p>
+
+			<h4>Implementation</h4>
+
+			<p>
+				I added a new security group rule in main.tf allowing incoming
+				TCP traffic on port 443 from 0.0.0.0/0.
+				I then ran tofu plan and tofu apply.
+			</p>
+
+			<h4>Result</h4>
+
+			<p>
+				OpenTofu added the new security group rule without replacing the
+				VM or modifying the existing resources.
+				The expected plan contained one resource to add and no changes
+				or deletions.
+			</p>
+
+			<p>
+				The existing HTTP webpage continued working, but HTTPS was not
+				available because Apache had not been configured with an HTTPS
+				virtual host and TLS certificate.
+			</p>
+
+			<h4>Explanation</h4>
+
+			<p>
+				Unlike Experiment 1A, this change did not affect the VM's
+				configuration. OpenTofu could create the additional firewall rule
+				independently without changing the running VM.
+			</p>
+
+			<p>
+				The experiment also demonstrated that firewall rules and application
+				configuration are separate concerns. Opening port 443 only allows
+				network traffic through the firewall; the web server must still
+				support HTTPS connections.
+			</p>
+
+			<p class="image-label">Plan showing the additional HTTPS rule:</p>
+			<img
+				class="doc-image"
+				src="https://a3s.fi/swift/v1/assignment-7-media/tofu_plan_added_https.png"
+				alt="OpenTofu plan showing the new HTTPS security group rule"
+				loading="lazy"
+			>
+
+			<p class="image-label">Updated security group:</p>
+			<img
+				class="doc-image"
+				src="https://a3s.fi/swift/v1/assignment-7-media/cpouta_week7_security_group_with_https.png"
+				alt="Security group with HTTPS rule"
+				loading="lazy"
+			>
+
+
+			<h3>Experiment 2A - Deleting a Managed Firewall Rule</h3>
+
+			<h4>Prediction</h4>
+
+			<p>
+				I expected OpenTofu to detect that the HTTP security group rule
+				had been deleted manually and propose recreating it.
+				Since the rule was defined in main.tf and tracked in the state
+				file, its absence should be detected during the next plan.
+			</p>
+
+			<p>
+				I also expected the webpage to become inaccessible because
+				incoming HTTP connections would no longer be allowed.
+			</p>
+
+			<h4>Implementation</h4>
+
+			<p>
+				I opened the cPouta dashboard and manually deleted the
+				security group rule allowing incoming TCP traffic on port 80.
+				I then tested the webpage and ran tofu plan.
+			</p>
+
+			<h4>Result</h4>
+
+			<p>
+				After deleting the rule, the webpage was no longer accessible
+				through HTTP. OpenTofu detected the missing managed resource
+				and proposed creating one new security group rule.
+			</p>
+
+			<p>
+				Running tofu apply recreated the missing rule, after which
+				the webpage became accessible again.
+			</p>
+
+			<h4>Explanation</h4>
+
+			<p>
+				OpenTofu uses its state file to keep track of managed resources.
+				During planning, it refreshes their current state using the
+				cloud provider API.
+			</p>
+
+			<p>
+				Because the HTTP rule was missing from the actual infrastructure
+				but still existed in the configuration, OpenTofu proposed
+				recreating it to restore the declared configuration.
+			</p>
+
+			<p class="image-label">Plan showing the missing HTTP rule:</p>
+			<img
+				class="doc-image"
+				src="https://a3s.fi/swift/v1/assignment-7-media/cpouta_week7_security_group_without_http.png"
+				alt="OpenTofu detecting the deleted HTTP rule"
+				loading="lazy"
+			>
+
+
+			<h3>Experiment 2B - Adding an Unmanaged Firewall Rule</h3>
+
+			<h4>Prediction</h4>
+
+			<p>
+				I expected OpenTofu to leave the manually added firewall rule
+				untouched because it was not defined in main.tf or tracked
+				as a managed resource in the state file.
+			</p>
+
+			<h4>Implementation</h4>
+
+			<p>
+				I manually added an ingress rule allowing TCP traffic on port
+				8080 from 0.0.0.0/0 using the cPouta dashboard.
+				I then ran tofu plan without modifying the OpenTofu configuration.
+			</p>
+
+			<h4>Result</h4>
+
+			<p>
+				OpenTofu reported that no changes were required, even though
+				the manually added rule existed in the security group.
+				After the experiment, I removed the rule manually.
+			</p>
+
+			<h4>Explanation</h4>
+
+			<p>
+				This result differed from Experiment 2A because the manually
+				added rule was not a resource managed by OpenTofu.
+				The configuration defined individual firewall rules rather
+				than enforcing an exact list of every rule in the security group.
+			</p>
+
+			<p>
+				OpenTofu therefore did not consider the additional rule something
+				that needed to be removed.
+			</p>
+
+			<p>
+				This demonstrates an important limitation of Infrastructure as Code:
+				manually created resources can remain outside the management of
+				the IaC configuration. Such changes can introduce security risks
+				if they are not monitored or reviewed separately.
+			</p>
+
+			<p class="image-label">Manually added firewall rule:</p>
+			<img
+				class="doc-image"
+				src="https://a3s.fi/swift/v1/assignment-7-media/cpouta_week7_security_group_custom_rule.png"
+				alt="Manually added TCP 8080 security group rule"
+				loading="lazy"
+			>
+
+			<p class="image-label">OpenTofu reporting no changes:</p>
+			<img
+				class="doc-image"
+				src="https://a3s.fi/swift/v1/assignment-7-media/tofu_plan_doesnt_see_custom_rule.png"
+				alt="OpenTofu plan showing no changes"
+				loading="lazy"
+			>
+
+
+			<h3>Experiment 3 - Destroy and Recreate</h3>
+
+			<h4>Prediction</h4>
+
+			<p>
+				I expected OpenTofu to destroy eight resources. The initial
+				deployment created seven resources, and Experiment 1B added
+				another security group rule.
+			</p>
+
+			<p>
+				I expected the resources to be destroyed in reverse dependency
+				order. The VM and floating IP should be removed before the
+				network port, while the security group must remain available
+				until resources depending on it have been removed.
+			</p>
+
+			<p>
+				The existing CSC project network should remain untouched
+				because it is referenced as a data source rather than managed
+				as a resource.
+			</p>
+
+			<p>
+				I also expected that the floating IP might change after
+				recreation because destroying it releases the address back
+				to the public IP pool.
+			</p>
+
+			<h4>Implementation</h4>
+
+			<p>
+				I executed tofu destroy to remove the infrastructure managed
+				by OpenTofu. After confirming that the resources were removed,
+				I executed tofu apply to recreate everything from the
+				configuration files.
+			</p>
+
+			<h4>Result</h4>
+
+			<p>
+				The infrastructure was successfully destroyed and recreated.
+				The destruction and recreation involved eight resources,
+				including the virtual machine, security group, firewall
+				rules, network port, SSH key pair, and floating IP.
+			</p>
+
+			<p>
+				The existing CSC project network remained available throughout
+				the experiment. After recreation, cloud-init configured Apache
+				automatically and the webpage was accessible again without
+				any manual server configuration.
+			</p>
+
+			<h4>Explanation</h4>
+
+			<p>
+				OpenTofu uses references between resources to determine
+				their dependencies. During destruction, resources are removed
+				in an order that respects these dependencies, while independent
+				operations can run simultaneously.
+			</p>
+
+			<p>
+				The project network survived because it is not owned or managed
+				by this OpenTofu configuration.
+			</p>
+
+			<p>
+				The floating IP is allocated dynamically and is not guaranteed
+				to remain the same after being destroyed and recreated.
+				The output variables make this easier to manage because
+				the current IP address and website URL are displayed
+				automatically after deployment.
+			</p>
+
+			<p>
+				I did not manually create a cPouta VM during Week 1, since I used
+				an existing VPS for that assignment. Therefore, I cannot make a
+				direct time comparison. However, the automated deployment
+				required significantly fewer manual steps and could be repeated
+				without configuring the VM again.
+			</p>
+
+			<p class="image-label">Infrastructure destruction:</p>
+			<img
+				class="doc-image"
+				src="https://a3s.fi/swift/v1/assignment-7-media/tofu_destroy.png"
+				alt="OpenTofu successfully destroying the infrastructure"
+				loading="lazy"
+			>
+
+			<p class="image-label">Infrastructure recreated successfully:</p>
+			<img
+				class="doc-image"
+				src="https://a3s.fi/swift/v1/assignment-7-media/tofu_recreate.png"
+				alt="OpenTofu successfully recreating the infrastructure"
+				loading="lazy"
+			>
+
+			<h3>Conclusion</h3>
+
+			<p>
+				The experiments demonstrated how OpenTofu handles different
+				infrastructure changes. Some changes, such as adding firewall
+				rules, can be applied without affecting existing resources.
+				Others, such as changing the VM's cloud-init configuration,
+				require resource replacement.
+			</p>
+
+			<p>
+				The drift experiments also showed that OpenTofu can restore
+				missing managed resources, but does not necessarily detect
+				or remove additional unmanaged resources.
+			</p>
+
+			<p>
+				Finally, destroying and recreating the infrastructure confirmed
+				that the configuration is reproducible and that the web server
+				can be deployed automatically without manual setup.
+			</p>
+
+		</section>
+
+        <section id="theory" class="tab-content">
+			<h2>Theory Questions</h2>
+
+			<h3>1. What is Infrastructure as Code, and which problems of manually created infrastructure does it solve?</h3>
+
+			<p>
+				Infrastructure as Code (IaC) means defining and managing infrastructure
+				through configuration files instead of manually creating resources
+				through a web interface or terminal. Tools such as OpenTofu can read
+				these files and automatically create the required infrastructure.
+			</p>
+
+			<p>
+				The main advantages are consistency, reproducibility, and easier
+				maintenance. Manual configuration can lead to forgotten steps,
+				configuration differences, and human errors. With IaC, the same
+				configuration can be used repeatedly, and changes can be tracked
+				through Git.
+			</p>
+
+			<p>
+				In Week 1, I used an existing VPS that I had configured previously.
+				In this assignment, I created a similar web server using OpenTofu
+				and cloud-init. Instead of manually creating a VM and installing
+				Apache, the entire setup was automated. I could also destroy
+				the infrastructure and recreate it using the same configuration.
+			</p>
+
+
+			<h3>2. Explain the difference between declarative and imperative infrastructure automation. What does idempotency mean?</h3>
+
+			<p>
+				Declarative automation describes the desired end state of a system,
+				while imperative automation describes the individual steps needed
+				to reach that state.
+			</p>
+
+			<p>
+				For example, with OpenTofu I can declare that I want an Ubuntu VM,
+				a security group, and a floating IP. OpenTofu determines which
+				resources need to be created or modified. An imperative approach
+				would involve writing a script containing the individual commands
+				needed to create and configure each resource.
+			</p>
+
+			<p>
+				Idempotency means that repeating an operation produces the same
+				final result without causing unnecessary changes. In OpenTofu,
+				running tofu apply multiple times with an unchanged configuration
+				should not keep creating additional resources.
+			</p>
+
+			<p>
+				This is important because it makes automation safer and more
+				predictable. For example, after deploying the infrastructure,
+				running tofu plan again should show no changes unless something
+				in the configuration or actual infrastructure has changed.
+			</p>
+
+
+			<h3>4. What is the state file used for? Why should it not be committed to Git, and how do teams share it?</h3>
+
+			<p>
+				OpenTofu uses a state file to keep track of the infrastructure
+				resources it manages. The state contains information such as
+				resource IDs and attributes, allowing OpenTofu to compare the
+				actual infrastructure with the desired configuration.
+			</p>
+
+			<p>
+				The state file should not be committed to Git because it can
+				contain sensitive information, including credentials or passwords,
+				depending on the resources being managed. It also changes
+				whenever infrastructure is modified, which can cause problems
+				if several developers maintain separate copies.
+			</p>
+
+			<p>
+				Teams usually store state in a shared remote backend, such as
+				an S3-compatible object storage service or another supported
+				state storage solution. Remote backends can provide access
+				control, encryption, and state locking to prevent multiple
+				users from modifying the same infrastructure simultaneously.
+			</p>
+
+			<p>
+				In this assignment, I used local state because I was working
+				alone. The state files were excluded from Git using .gitignore.
+			</p>
+
+
+			<h3>6. Explain the difference between provisioning and configuration management. Where do cloud-init and Ansible fit in?</h3>
+
+			<p>
+				Provisioning means creating the infrastructure resources needed
+				to run an application, such as virtual machines, networks,
+				storage, and security groups. Configuration management focuses
+				on installing software and configuring those resources after
+				they have been created.
+			</p>
+
+			<p>
+				In this assignment, OpenTofu handled provisioning by creating
+				the VM and networking resources in cPouta. Cloud-init handled
+				the initial configuration by installing Apache, creating the
+				webpage files, and starting the web server.
+			</p>
+
+			<p>
+				Cloud-init is mainly used for initial configuration when a VM
+				starts for the first time. Ansible is a more general configuration
+				management tool that can configure existing machines, install
+				software, and repeatedly apply configuration changes.
+			</p>
+
+			<p>
+				For example, OpenTofu could create ten virtual machines,
+				while Ansible could install and configure the same software
+				on all of them. The two tools can therefore complement
+				each other rather than serve exactly the same purpose.
+			</p>
+
+
+			<h3>Sources</h3>
+
+			<p>
+				<a href="https://opentofu.org/docs/" target="_blank" rel="noopener noreferrer">
+					OpenTofu Documentation
+				</a>
+			</p>
+
+			<p>
+				<a href="https://opentofu.org/docs/language/values/variables/" target="_blank" rel="noopener noreferrer">
+					OpenTofu - Input Variables
+				</a>
+			</p>
+
+			<p>
+				<a href="https://opentofu.org/docs/language/state/backends/" target="_blank" rel="noopener noreferrer">
+					OpenTofu - State Storage and Locking
+				</a>
+			</p>
+
+			<p>
+				<a href="https://opentofu.org/docs/language/state/sensitive-data/" target="_blank" rel="noopener noreferrer">
+					OpenTofu - Sensitive Data in State
+				</a>
+			</p>
+
+			<p>
+				<a href="https://cloudinit.readthedocs.io/" target="_blank" rel="noopener noreferrer">
+					Cloud-init Documentation
+				</a>
+			</p>
+
+			<p>
+				<a href="https://docs.ansible.com/" target="_blank" rel="noopener noreferrer">
+					Ansible Documentation
+				</a>
+			</p>
+
+			<p>
+				<a href="https://www.villemajava.com/cloudservicesiacsetup" target="_blank" rel="noopener noreferrer">
+					Cloud Services - Week 7 Practical Guide
+				</a>
+			</p>
+
+		</section>
+
+    </main>
+
+    <footer>
+        <p>Cloud Services - Week 7 | __STUDENT_NAME__</p>
+    </footer>
+
+    <script>
+        const tabs = document.querySelectorAll(".tab");
+        const contents = document.querySelectorAll(".tab-content");
+
+        tabs.forEach(tab => {
+            tab.addEventListener("click", () => {
+                tabs.forEach(t => t.classList.remove("active"));
+                contents.forEach(c => c.classList.remove("active"));
+
+                tab.classList.add("active");
+                document.getElementById(tab.dataset.tab).classList.add("active");
+            });
+        });
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,12 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+
+clouds.yaml
+secure.yaml
+*openrc*
+*.pem
+
+terraform.tfvars
+*.auto.tfvars

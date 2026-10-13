@@ -1,0 +1,10 @@
+project_network     = "project_xyz"
+ssh_allowed_cidr    = "your.ip.address.here/32"
+student_name        = "Your Name"
+
+name_prefix         = "week7"
+image_name          = "Ubuntu-24.04"
+flavor_name         = "standard.tiny"
+ssh_public_key_path = "~/.ssh/your_key_ed25519.pub"
+
+page_message = "This web server was automatically deployed using OpenTofu and cloud-init on CSC cPouta."

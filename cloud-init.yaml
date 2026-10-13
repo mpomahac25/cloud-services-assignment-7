@@ -1,0 +1,24 @@
+#cloud-config
+
+package_update: true
+
+packages:
+  - apache2
+
+write_files:
+  - path: /var/www/html/index.html
+    owner: root:root
+    permissions: '0644'
+    encoding: b64
+    defer: true
+    content: ${index_html_b64}
+
+  - path: /var/www/html/style.css
+    owner: root:root
+    permissions: '0644'
+    encoding: b64
+    defer: true
+    content: ${style_css_b64}
+
+runcmd:
+  - systemctl enable --now apache2
